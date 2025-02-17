@@ -1,4 +1,4 @@
-![BuildStatus](https://github.com/carolinehhuang/HW5-NW/actions/workflows/python-ci.yml/badge.svg?event=push)
+![BuildStatus](https://github.com/carolinehhuang/HW5-NW/actions/workflows/ci.yml/badge.svg)
 
 # Project 5
 Needleman Wunsch Algorithm
