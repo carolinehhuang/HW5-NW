@@ -35,8 +35,8 @@ def main():
     #sort the list of species by their alignment scores
     sorted_sequence = sorted(sequence_list, reverse = True)
 
-    print("Original nameList:", [x[1] for x in sequence_list])
-    print("Sorted nameList:", [x[1] for x in sorted_sequence])
+    print("Original nameList:", sequence_list)
+    print("Sorted nameList:", sorted_sequence)
 
     
 
