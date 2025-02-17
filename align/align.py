@@ -115,6 +115,14 @@ class NeedlemanWunsch:
          	(alignment score, seqA alignment, seqB alignment) : Tuple[float, str, str]
          		the score and corresponding strings for the alignment of seqA and seqB
         """
+        #check that the parameters have the correct format and are provided
+        if not isinstance(seqA, str) or not isinstance(seqB, str):
+            raise TypeError("seqA and seqB must be strings")
+
+        if not seqA and not seqB:
+            raise ValueError("Sequences are not provided")
+
+
         # Resetting alignment in case method is called more than once
         self.seqA_align = ""
         self.seqB_align = ""
@@ -127,13 +135,39 @@ class NeedlemanWunsch:
         self._seqB = seqB
         
         # TODO: Initialize matrix private attributes for use in alignment
-        # create matrices for alignment scores, gaps, and backtracing
-        pass
+        # create matrices for alignment scores and backtracing
+        rows, cols = len(seqA) + 1, len(seqB) + 1
+        self._align_matrix = np.zeros([rows,cols]) #to store alignment scores
+        self._back = np.full((rows,cols), fill_value = -1) #to store directions
 
-        
-        # TODO: Implement global alignment here
-        pass      		
-        		    
+        #define the alignment scores and backtracing values for the first row and column
+        # alignment scores are just the gap penalties for the first row and column
+        for i in range(1, rows):
+            self._align_matrix[i][0] = self.gap_open + i * self.gap_extend
+            self._back[i][0] = 1 #for the backtracing matrix, define 1 as "up", meaning that the current alignment score was derived from the value stored in the row above it
+
+        for j in range(1, cols):
+            self._align_matrix[0][j] = self.gap_open + j * self.gap_extend
+            self._back[0][j] = 2 #for the bt matrix, define 2 as "left", meaning that the current alignment score was derived from the value stored in the column to its left
+
+        for i in range(1, rows): #for every other row and column in the matrix...
+            for j in range(1, cols):
+                match = self._align_matrix[i-1][j-1] + self.sub_dict.get((seqA[i-1], seqB[j-1])) #match score is the substitution score plus the previous alignment score before
+                empty = self._align_matrix[i-1][j] + (self.gap_extend if self._back[i - 1][j] == 1 else self.gap_extend + self.gap_open) #score in circumstance where seqB has a deletion and we need to insert a space in seqB for it to align with seqA; if seqB is just continuing an existing deletion, add gap_extension, but if  creating a new gap, add gap extension+gap open score
+                insert = self._align_matrix[i][j-1] + (self.gap_extend if self._back[i][j - 1] == 2 else self.gap_extend + self.gap_open) #score in circumstance where seqB has an insertion and seqA needs an insertion to align with seqB
+
+                best = max(match, empty, insert) #find the maximum value of 3 scenarios
+                self._align_matrix[i][j] = best #assign best score to alignment matrix
+
+                #fill backtrace matrix with direction depending on the beset alignment value
+                if best == match:
+                    self._back[i][j] = 0 #represents diagonal align[i-1,j-1]
+                elif best == empty:
+                    self._back[i][j] = 1 #represents up align[i-1, j]
+                else:
+                    self._back[i][j] = 2 #represents left align[i, j-1]
+
+        self.alignment_score = self._align_matrix[-1,-1] #alignment score is the bottom right corner
         return self._backtrace()
 
     def _backtrace(self) -> Tuple[float, str, str]:
@@ -150,9 +184,28 @@ class NeedlemanWunsch:
          	(alignment score, seqA alignment, seqB alignment) : Tuple[float, str, str]
          		the score and corresponding strings for the alignment of seqA and seqB
         """
-        pass
+        rows, cols = len(self._seqA), len(self._seqB)
 
-        return (self.alignment_score, self.seqA_align, self.seqB_align)
+        while rows > 0 or cols > 0 and self._back[rows][cols]!= -1:
+
+            if rows > 0 and cols > 0 and self._back[rows][cols] == 0: #if the best match was diagonal
+                self.seqA_align = self._seqA[rows-1] + self.seqA_align #add the current letter of seqA to the aligned sequence
+                self.seqB_align = self._seqB[cols-1] + self.seqB_align  #add current letter of seq B to the aligned sequence
+
+                rows -= 1
+                cols -= 1
+            elif rows > 0 and self._back[rows][cols] == 1:
+                self.seqA_align = self._seqA[rows-1] + self.seqA_align
+                self.seqB_align = "-" + self.seqB_align #add a "-" in seqB to represent the deletion
+                # move backward to the score it was derived from, the up value
+                rows -= 1
+            elif cols > 0:
+                self.seqB_align = self._seqB[rows-1] + self.seqB_align
+                self.seqA_align = "-" + self.seqA_align #add a "-" in seqA to represent the deletion
+                # move backward to the score it was derived from, the left value
+                cols -= 1
+
+        return self.alignment_score, self.seqA_align, self.seqB_align
 
 
 def read_fasta(fasta_file: str) -> Tuple[str, str]:
